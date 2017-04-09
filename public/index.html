@@ -29,21 +29,19 @@
                     {from: 3, to: 3}
                 ]);
 
-                var network = new vis.Network(document.getElementById('network'), {
-                    nodes: nodes,
-                    edges: edges
-                }, {});
+                var network = new vis.Network(document.getElementById('network'), {nodes:nodes,edges:edges}, {});
                 network.redraw();
 
-                var ws = new WebSocket("ws://[::]:3001/packets");
-                
-                ws.onopen = function() {};
-                ws.onclose = function() {};
-
-                ws.onmessage = function (evt) { 
-                    var received_msg = evt.data;
-                    console.log(received_msg);
-                };
+                /*setInterval(function() {*/
+                    var request = new XMLHttpRequest();
+                    request.onreadystatechange = function() {
+                         if (request.readyState == 4 && request.status == 200) {
+                            console.log(JSON.parse(request.responseText));
+                         }
+                      }
+                    request.open('GET', '/data', true);
+                    request.send();
+                /*}, 5000);*/
             };
         </script>
     </body>
