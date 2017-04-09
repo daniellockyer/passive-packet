@@ -19,17 +19,6 @@ use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::ipv6::Ipv6Packet;
 use std::net::IpAddr;
 
-fn handle_packet(interface_name: &str, ethernet: &EthernetPacket) {
-    match ethernet.get_ethertype() {
-        EtherTypes::Ipv4 => handle_ipv4_packet(interface_name, ethernet),
-        EtherTypes::Ipv6 => handle_ipv6_packet(interface_name, ethernet),
-        EtherTypes::Arp => handle_arp_packet(interface_name, ethernet),
-        _ => println!("[{}]: Unknown packet: {} > {}; ethertype: {:?} length: {}",
-				interface_name, ethernet.get_source(), ethernet.get_destination(), 
-				ethernet.get_ethertype(), ethernet.packet().len())
-    }
-}
-
 fn handle_arp_packet(interface_name: &str, ethernet: &EthernetPacket) {
     let header = ArpPacket::new(ethernet.payload());
     if let Some(header) = header {
@@ -94,7 +83,14 @@ fn main() {
     let mut iter = rx.iter();
     loop {
         match iter.next() {
-            Ok(packet) => handle_packet(&interface.name[..], &packet),
+            Ok(packet) => match packet.get_ethertype() {
+		        EtherTypes::Ipv4 => handle_ipv4_packet(iface_name, &packet),
+		        EtherTypes::Ipv6 => handle_ipv6_packet(iface_name, &packet),
+		        EtherTypes::Arp => handle_arp_packet(iface_name, &packet),
+		        _ => println!("[{}]: Unknown packet: {} > {}; ethertype: {:?} length: {}",
+						iface_name, &packet.get_source(), &packet.get_destination(), 
+						&packet.get_ethertype(), &packet.packet().len())
+		    },
             Err(e) => panic!("packetdump: unable to receive packet: {}", e),
         }
     }
