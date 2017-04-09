@@ -72,7 +72,7 @@ fn main() {
 
     let iface_name = "wlp2s0";
     let interfaces = datalink::interfaces();
-    let interface = interfaces.into_iter().filter(|iface: &NetworkInterface| iface.name == iface_name).next().unwrap();
+    let interface = interfaces.into_iter().find(|iface: &NetworkInterface| iface.name == iface_name).unwrap();
 
     let (_, mut rx) = match datalink::channel(&interface, Default::default()) {
         Ok(Ethernet(tx, rx)) => (tx, rx),
