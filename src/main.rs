@@ -55,11 +55,8 @@ fn main() {
 
     for interface in interfaces.clone() {
         let mac = interface.mac.map(|mac| mac.to_string()).unwrap_or_else(|| "N/A".to_owned());
-        println!("{}:", interface.name);
-        println!("\tindex: {}", interface.index);
-        println!("\tflags: {}", interface.flags);
-        println!("\tMAC: {}", mac);
-        println!("\tIPs: {:?}", interface.ips);
+        println!("{}({}) - {}:", interface.name, interface.index, interface.flags);
+        println!("\tMAC: {} -- {:?}", mac, interface.ips);
     }
 
     // <http server>
@@ -84,9 +81,8 @@ fn main() {
 		        EtherTypes::Ipv4 => handle_ipv4_packet(iface_name, &packet),
 		        EtherTypes::Ipv6 => handle_ipv6_packet(iface_name, &packet),
 		        EtherTypes::Arp => handle_arp_packet(iface_name, &packet),
-		        _ => println!("[{}]: Unknown packet: {} > {}; ethertype: {:?} length: {}",
-						iface_name, &packet.get_source(), &packet.get_destination(), 
-						&packet.get_ethertype(), &packet.packet().len())
+		        _ => println!("[{}]: Unknown packet: {} > {}; ethertype: {:?} length: {}", iface_name,
+		        	&packet.get_source(), &packet.get_destination(), &packet.get_ethertype(), &packet.packet().len())
 		    },
             Err(e) => panic!("packetdump: unable to receive packet: {}", e),
         }
