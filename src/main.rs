@@ -23,12 +23,8 @@ fn handle_arp_packet(interface_name: &str, ethernet: &EthernetPacket) {
     let header = ArpPacket::new(ethernet.payload());
     if let Some(header) = header {
         println!("[{}]: ARP packet: {}({}) > {}({}); operation: {:?}",
-                 interface_name,
-                 ethernet.get_source(),
-                 header.get_sender_proto_addr(),
-                 ethernet.get_destination(),
-                 header.get_target_proto_addr(),
-                 header.get_operation());
+			interface_name, ethernet.get_source(), header.get_sender_proto_addr(),
+            ethernet.get_destination(), header.get_target_proto_addr(), header.get_operation());
     } else {
         println!("[{}]: Malformed ARP Packet", interface_name);
     }
@@ -77,7 +73,7 @@ fn main() {
 
     let (_, mut rx) = match datalink::channel(&interface, Default::default()) {
         Ok(Ethernet(tx, rx)) => (tx, rx),
-        Ok(_) => panic!("packetdump: unhandled channel type: {}"),
+        Ok(_) => panic!("packetdump: unhandled channel type"),
         Err(e) => panic!("packetdump: unable to create channel: {}", e),
     };
 
