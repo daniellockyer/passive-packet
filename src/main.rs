@@ -55,7 +55,9 @@ fn handle_ipv6_packet(interface_name: &str, ethernet: &EthernetPacket) {
 }
 
 fn main() {
-    for interface in datalink::interfaces() {
+    let interfaces = datalink::interfaces();
+
+    for interface in interfaces.clone() {
         let mac = interface.mac.map(|mac| mac.to_string()).unwrap_or_else(|| "N/A".to_owned());
         println!("{}:", interface.name);
         println!("\tindex: {}", interface.index);
@@ -71,7 +73,6 @@ fn main() {
 	// </http server>
 
     let iface_name = "wlp2s0";
-    let interfaces = datalink::interfaces();
     let interface = interfaces.into_iter().find(|iface: &NetworkInterface| iface.name == iface_name).unwrap();
 
     let (_, mut rx) = match datalink::channel(&interface, Default::default()) {
