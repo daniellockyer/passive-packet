@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Passive Packet Visualiser</title>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.19.1/vis.min.js" type="text/javascript"></script>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.19.1/vis.min.css" />
+        <style>
+            html,body{margin:0;padding:0;height:100%;overflow: hidden;}
+            #network{height:100%;border: 1px solid lightgray;background-color:#333333;}
+        </style>
+    </head>
+    <body>
+        <div id="network"></div>
+        <script>
+            window.onload = function () {
+                var nodes = new vis.DataSet([
+                    {id: 1, label: 'Node 1'},
+                    {id: 2, label: 'Node 2'},
+                    {id: 3, label: 'Node 3'},
+                    {id: 4, label: 'Node 4'},
+                    {id: 5, label: 'Node 5'}
+                ]);
+
+                var edges = new vis.DataSet([
+                    {from: 1, to: 3},
+                    {from: 1, to: 2},
+                    {from: 2, to: 4},
+                    {from: 2, to: 5},
+                    {from: 3, to: 3}
+                ]);
+
+                var network = new vis.Network(document.getElementById('network'), {
+                    nodes: nodes,
+                    edges: edges
+                }, {});
+                network.redraw();
+
+                var ws = new WebSocket("ws://[::]:3001/packets");
+                
+                ws.onopen = function() {};
+                ws.onclose = function() {};
+
+                ws.onmessage = function (evt) { 
+                    var received_msg = evt.data;
+                    console.log(received_msg);
+                };
+            };
+        </script>
+    </body>
+</html>
