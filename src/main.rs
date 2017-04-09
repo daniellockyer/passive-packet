@@ -1,12 +1,18 @@
+#![feature(rustc_private)]
+
 extern crate pnet;
 extern crate iron;
 extern crate staticfile;
 extern crate mount;
+extern crate rustc_serialize;
 
+use rustc_serialize::json;
 use std::path::Path;
 use std::thread;
+use std::sync::Mutex;
+use std::sync::Arc;
 
-use iron::Iron;
+use iron::{Iron, Request, Response};
 use staticfile::Static;
 use mount::Mount;
 
@@ -59,9 +65,17 @@ fn main() {
         println!("\tMAC: {} -- {:?}", mac, interface.ips);
     }
 
+	let mut data = Arc::new(Mutex::new(Vec::new()));
+	let data_closure = data.clone();
+
     // <http server>
     let mut mount = Mount::new();
-    mount.mount("/", Static::new(Path::new("public")));
+	mount
+		.mount("/", Static::new(Path::new("public")))
+		.mount("/data", move |_: &mut Request| {
+			let ref data2 = *data_closure.lock().expect("Unable to lock output");
+			Ok(Response::with((iron::status::Ok, json::encode(&data2).unwrap())))
+		});
     thread::spawn(|| { Iron::new(mount).http("[::]:3000").unwrap(); });
 	// </http server>
 
@@ -76,6 +90,9 @@ fn main() {
 
     let mut iter = rx.iter();
     loop {
+    	let mut data = data.lock().expect("Unable to lock output");
+    	data.push(iface_name);
+
         match iter.next() {
             Ok(packet) => match packet.get_ethertype() {
 		        EtherTypes::Ipv4 => handle_ipv4_packet(iface_name, &packet),
