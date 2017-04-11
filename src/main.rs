@@ -23,10 +23,6 @@ fn main() {
         process::exit(1);
     });
 
-    for interface in interfaces.clone() {
-        let mac = interface.mac.map(|mac| mac.to_string()).unwrap_or_else(|| "N/A".to_owned());
-        println!("{}({}) - {} -- {:?}", interface.name, interface.index, mac, interface.ips);
-    }
 
 	let data = Arc::new(Mutex::new(Vec::new()));
 	let data_closure = data.clone();
