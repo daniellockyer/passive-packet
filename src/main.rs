@@ -18,6 +18,10 @@ use pnet::datalink::Channel::Ethernet;
 
 fn main() {
     let interfaces = datalink::interfaces();
+    let iface_name = env::args().nth(1).unwrap_or_else(|| {
+        writeln!(io::stderr(), "[!] Usage: passive-packet <interface>").unwrap();
+        process::exit(1);
+    });
 
     for interface in interfaces.clone() {
         let mac = interface.mac.map(|mac| mac.to_string()).unwrap_or_else(|| "N/A".to_owned());
