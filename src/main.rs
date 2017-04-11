@@ -22,6 +22,24 @@ use pnet::packet::arp::ArpPacket;
 use pnet::datalink::{self, NetworkInterface};
 use pnet::datalink::Channel::Ethernet;
 
+struct Communication {
+	src: String,
+	dst: String,
+	typ: EtherType,
+	val: u32
+}
+
+impl ToJson for Communication {
+	fn to_json(&self) -> Json {
+		let mut d = BTreeMap::new();
+		d.insert("src".to_string(), self.src.to_json());
+		d.insert("dst".to_string(), self.dst.to_json());
+		d.insert("type".to_string(), format!("{}", self.typ).to_json());
+		d.insert("value".to_string(), self.val.to_json());
+		Json::Object(d)
+	}
+}
+
 fn main() {
     let iface_name = env::args().nth(1).unwrap_or_else(|| {
         writeln!(io::stderr(), "[!] Usage: passive-packet <interface>").unwrap();
