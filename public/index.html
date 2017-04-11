@@ -15,16 +15,49 @@
                 var edges = new vis.DataSet([]);
                 var network = new vis.Network(document.getElementById('network'), {nodes:nodes,edges:edges}, {});
 
-                /*setInterval(function() {*/
-                    var request = new XMLHttpRequest();
-                    request.onreadystatechange = function() {
-                         if (request.readyState == 4 && request.status == 200) {
-                            console.log(JSON.parse(request.responseText));
-                         }
-                      }
-                    request.open('GET', '/data', true);
-                    request.send();
-                /*}, 5000);*/
+                function randomId() { return (Math.random() * 1e7).toString(32); }
+
+                var request = new XMLHttpRequest();
+                request.onreadystatechange = function() {
+                     if (request.readyState == 4 && request.status == 200) {
+                        var data = JSON.parse(request.responseText);
+
+                        data.forEach(function(item) {
+                            var record = JSON.parse(item);
+                            var src = record['src'];
+                            var dst = record['dst'];
+
+                            if(!(src in nodeList)) {
+                                var id = randomId();
+                                nodes.add({id:id, label:src});
+                                nodeList[src] = id;
+                            }
+                            if(!(dst in nodeList)) {
+                                var id = randomId();
+                                nodes.add({id:id, label:dst});
+                                nodeList[dst] = id;
+                            }
+
+                            var src_id = nodeList[src];
+                            var dst_id = nodeList[dst];
+
+                            if(!(src_id in edgesList)) edgesList[src_id] = [];
+
+                            if(!edgesList[src_id].includes(dst_id)) {
+                                edges.add({
+                                    "id": randomId(),
+                                    "from": src_id,
+                                    "to": dst_id,
+                                    "arrows": "to",
+                                });
+                                edgesList[src_id].push(dst_id);
+                            }
+                        });
+                        network.fit();
+                     }
+                  }
+                request.open('GET', '/data', true);
+                request.send();
             };
         </script>
     </body>
