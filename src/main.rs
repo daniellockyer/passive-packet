@@ -37,24 +37,21 @@ fn main() {
 
 	let data = Arc::new(Mutex::new(Vec::new()));
 	let data_closure = data.clone();
-
     let mut mount = Mount::new();
-	mount
-		.mount("/", Static::new(Path::new("public")))
-		.mount("/data", move |_: &mut Request| {
-			let data2 = &(*data_closure.lock().expect("Unable to lock output"));
-			let json_data = data2.to_json();
-			Ok(Response::with((iron::status::Ok, json_data.to_string())))
-		});
-    thread::spawn(|| Iron::new(mount).http("[::]:3000").unwrap());
 
-    let iface_name = "wlp2s0";
-    let interface = interfaces.into_iter().find(|iface: &NetworkInterface| iface.name == iface_name).unwrap();
+	mount.mount("/", Static::new(Path::new("public"))).mount("/data", move |_: &mut Request| {
+		let data2 = &(*data_closure.lock().expect("Unable to lock output"));
+		let json_data = data2.to_json();
+		Ok(Response::with((iron::status::Ok, json_data.to_string())))
+	});
+
+    thread::spawn(|| Iron::new(mount).http("[::]:3000").unwrap());
+    println!("Listening...");
 
     let (_, mut rx) = match datalink::channel(&interface, Default::default()) {
         Ok(Ethernet(tx, rx)) => (tx, rx),
-        Ok(_) => panic!("packetdump: unhandled channel type"),
-        Err(e) => panic!("packetdump: unable to create channel: {}", e),
+        Ok(_) => panic!("[!] Unhandled channel type"),
+        Err(e) => panic!("[!] Unable to create channel: {}", e),
     };
 
     let mut iter = rx.iter();
@@ -93,7 +90,7 @@ fn main() {
 
     			data.push(format!("{{\"src\": {:?}, \"dst\": {:?}, \"type\": \"{:?}\"}}", src, dst, packet.get_ethertype()));
 		    },
-            Err(e) => panic!("packetdump: unable to receive packet: {}", e),
+            Err(e) => panic!("[!] Unable to receive packet: {}", e),
         }
     }
 }
