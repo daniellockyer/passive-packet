@@ -10,9 +10,10 @@
         <div id="network"></div>
         <script>
             window.onload = function () {
-                var nodeList = [], edgesList = {};
-                nodes = [];
-                edges = [];
+                var nodeList = [];
+                var nodes = new vis.DataSet([]);
+                var edges = new vis.DataSet([]);
+                var network = new vis.Network(document.getElementById('network'), {nodes:nodes,edges:edges}, {});
 
                 function randomId() { return (Math.random() * 1e7).toString(32); }
 
@@ -22,43 +23,33 @@
                         var data = JSON.parse(request.responseText);
                         var start = Date.now();
 
-                        data.forEach(function(item) {
-                            var record = JSON.parse(item);
+                        data.forEach(function(record) {
                             var src = record['src'];
                             var dst = record['dst'];
 
                             if(!(src in nodeList)) {
                                 var id = randomId();
-                                nodes.push({id:id, label:src});
+                                nodes.add({id:id, label:src});
                                 nodeList[src] = id;
                             }
                             if(!(dst in nodeList)) {
                                 var id = randomId();
-                                nodes.push({id:id, label:dst});
+                                nodes.add({id:id, label:dst});
                                 nodeList[dst] = id;
                             }
 
                             var src_id = nodeList[src], dst_id = nodeList[dst];
 
-                            if(!(src_id in edgesList)) edgesList[src_id] = {};
-
-                            if(dst_id in edgesList[src_id]) {
-                                edges[edgesList[src_id][dst_id]].value += 1;
-                            } else {
-                                var edgeId = randomId();
-                                edges[edgeId] = {
-                                    "id": edgeId,
-                                    "from": src_id,
-                                    "to": dst_id,
-                                    "arrows": "to",
-                                    "value": 1
-                                };
-                                edgesList[src_id][dst_id] = edgeId;
-                            }
+                            edges.add({
+                                "id": randomId(),
+                                "from": src_id,
+                                "to": dst_id,
+                                "label": record['type']+"("+record['value']+")",
+                                "arrows": "to",
+                                "value": record['value']
+                            });
                         });
                         console.log("Done in " + (Date.now() - start) + "ms");
-                        var newEdges = Object.keys(edges).map(function(key){ return edges[key]; });
-                        network = new vis.Network(document.getElementById('network'), {nodes:nodes,edges:newEdges}, {});
                      }
                   }
                 request.open('GET', '/data', true);
