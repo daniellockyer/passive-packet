@@ -62,8 +62,36 @@ fn main() {
         match iter.next() {
             Ok(packet) => {
     			let mut data = data.lock().expect("Unable to lock output");
-    			data.push(format!("{{\"src\": \"{:?}\", \"dst\": \"{:?}\", \"type\": \"{:?}\"}}",
-    				packet.get_source(), packet.get_destination(), packet.get_ethertype()));
+
+    			let (src, dst): (String, String) = match packet.get_ethertype() {
+			        EtherTypes::Ipv4 => {
+			        	let header = Ipv4Packet::new(packet.payload());
+    					if let Some(header) = header {
+							(header.get_source().to_string(), header.get_destination().to_string())
+						} else {
+							("N/A".to_string(), "N/A".to_string())
+						}
+			        },
+			        EtherTypes::Ipv6 => {
+			        	let header = Ipv6Packet::new(packet.payload());
+    					if let Some(header) = header {
+							(header.get_source().to_string(), header.get_destination().to_string())
+						} else {
+							("N/A".to_string(), "N/A".to_string())
+						}
+					},
+			        EtherTypes::Arp => {
+			        	let header = ArpPacket::new(packet.payload());
+    					if let Some(header) = header {
+							(header.get_sender_proto_addr().to_string(), header.get_target_proto_addr().to_string())
+						} else {
+							("N/A".to_string(), "N/A".to_string())
+						}
+					},
+			        _ => ("N/A".to_string(), "N/A".to_string())
+			    };
+
+    			data.push(format!("{{\"src\": {:?}, \"dst\": {:?}, \"type\": \"{:?}\"}}", src, dst, packet.get_ethertype()));
 		    },
             Err(e) => panic!("packetdump: unable to receive packet: {}", e),
         }
