@@ -17,12 +17,17 @@ use pnet::datalink::{self, NetworkInterface};
 use pnet::datalink::Channel::Ethernet;
 
 fn main() {
-    let interfaces = datalink::interfaces();
     let iface_name = env::args().nth(1).unwrap_or_else(|| {
         writeln!(io::stderr(), "[!] Usage: passive-packet <interface>").unwrap();
         process::exit(1);
     });
 
+    let interface = datalink::interfaces().into_iter()
+    					.find(|iface: &NetworkInterface| iface.name == iface_name)
+    					.unwrap_or_else(|| {
+    						writeln!(io::stderr(), "[!] That interface does not exist.").unwrap();
+        					process::exit(1);
+    					});
 
 	let data = Arc::new(Mutex::new(Vec::new()));
 	let data_closure = data.clone();
