@@ -6,6 +6,7 @@ extern crate mount;
 
 use std::{env,thread,process};
 use std::path::Path;
+use std::collections::BTreeMap;
 use std::io::{self, Write};
 use std::sync::{Mutex, Arc};
 
@@ -37,6 +38,35 @@ impl ToJson for Communication {
 		d.insert("type".to_string(), format!("{}", self.typ).to_json());
 		d.insert("value".to_string(), self.val.to_json());
 		Json::Object(d)
+	}
+}
+
+struct CommStore {
+	data: Vec<Communication>,
+}
+
+impl ToJson for CommStore {
+	fn to_json(&self) -> Json {
+		self.data.to_json()
+	}
+}
+
+impl <'a> CommStore {
+	fn new() -> CommStore {
+		CommStore {
+			data: Vec::new()
+		}
+	}
+
+	fn add(&mut self, src: String, dst: String, packet: EthernetPacket) {
+		for e in &mut self.data {
+			if e.src == src && e.dst == dst && e.typ == packet.get_ethertype() {
+				e.val += 1;
+				return;
+			}
+		}
+
+		self.data.push(Communication { src: src, dst: dst, typ: packet.get_ethertype(), val: 1 })
 	}
 }
 
