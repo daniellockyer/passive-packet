@@ -94,7 +94,7 @@ fn main() {
 	});
 
 	thread::spawn(|| Iron::new(mount).http("[::]:3000").unwrap());
-	println!("Listening...");
+	println!("Listening on http://[::]:3000");
 
 	let (_, mut rx) = match datalink::channel(&interface, Default::default()) {
 		Ok(Ethernet(tx, rx)) => (tx, rx),
