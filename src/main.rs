@@ -27,7 +27,8 @@ struct Communication {
 	src: String,
 	dst: String,
 	typ: EtherType,
-	val: u32
+	val: u32,
+	local: bool,
 }
 
 impl ToJson for Communication {
@@ -37,6 +38,7 @@ impl ToJson for Communication {
 		d.insert("dst".to_string(), self.dst.to_json());
 		d.insert("type".to_string(), format!("{}", self.typ).to_json());
 		d.insert("value".to_string(), self.val.to_json());
+		d.insert("local".to_string(), self.local.to_json());
 		Json::Object(d)
 	}
 }
@@ -53,8 +55,24 @@ impl ToJson for CommStore {
 
 impl <'a> CommStore {
 	fn new() -> CommStore {
+		let mut ip_list = Vec::new();
+
+		for interface in datalink::interfaces() {
+			if let Some(ips) = interface.ips {
+				for ip in ips {
+					ip_list.push(Communication {
+						src: format!("{}", ip),
+						dst: format!("{}", ip),
+						typ: EtherType(0x0000), //Unused, just need to fill gap.
+						val: 0,
+						local: true
+					});
+				}
+			}
+		}
+
 		CommStore {
-			data: Vec::new()
+			data: ip_list
 		}
 	}
 
@@ -66,7 +84,7 @@ impl <'a> CommStore {
 			}
 		}
 
-		self.data.push(Communication { src: src, dst: dst, typ: packet.get_ethertype(), val: 1 })
+		self.data.push(Communication { src: src, dst: dst, typ: packet.get_ethertype(), val: 1, local:false })
 	}
 }
 
