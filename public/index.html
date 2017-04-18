@@ -71,6 +71,8 @@
                             var src_id = itemAdder(record, src);
                             var dst_id = itemAdder(record, dst);
 
+                            if(record['local']) return;
+
                             edges.add({
                                 "id": randomId(),
                                 "from": src_id,
