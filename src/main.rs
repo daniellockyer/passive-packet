@@ -65,7 +65,7 @@ impl ToJson for CommStore {
 	}
 }
 
-impl <'a> CommStore {
+impl CommStore {
 	fn new() -> CommStore {
 		let mut ip_list = Vec::new();
 
@@ -127,14 +127,9 @@ fn main() {
 	};
 
 	let mut iter = rx.iter();
-	let mut i = 0;
 	loop {
 		match iter.next() {
 			Ok(packet) => {
-				i += 1;
-				if i % 100 == 0 {
-					println!("Captured {} packets.", i);
-				}
 				let mut data = data.lock().expect("Unable to lock output");
 
 				let (src, dst): (String, String) = match packet.get_ethertype() {
