@@ -4,18 +4,42 @@
         <title>Passive Packet Visualiser</title>
         <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.19.1/vis.min.js" type="text/javascript"></script>
         <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.19.1/vis.min.css" />
-        <style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}#network{height:100%;background-color:#333333;}</style>
+        <style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}#network{height:100%;}</style>
     </head>
     <body>
         <div id="network"></div>
         <script>
             window.onload = function () {
+                function randomId() { return (Math.random() * 1e7).toString(32); }
+                String.prototype.capitalize = function() { return this.charAt(0).toUpperCase() + this.slice(1); }
+
+                var network_div = document.getElementById('network');
                 var nodeList = [];
                 var nodes = new vis.DataSet([]);
                 var edges = new vis.DataSet([]);
-                var network = new vis.Network(document.getElementById('network'), {nodes:nodes,edges:edges}, {});
+                var options = {
+                    nodes: { scaling: { min: 16, max: 32 }},
+                    edges: { color: '#666666', smooth: false },
+                    groups: {
+                        switch: { shape: 'triangle', color: '#FF9900' },
+                        desktop: { shape: 'dot', color: "#2B7CE9" },
+                        mobile: { shape: 'dot', color: "#5A1E5C" },
+                        server: { shape: 'square', color: "#C5000B" },
+                        internet: { shape: 'square', color: "#109618" }
+                    }
+                };
+                var network = new vis.Network(network_div, {nodes:nodes,edges:edges}, options);
 
-                function randomId() { return (Math.random() * 1e7).toString(32); }
+                var x = -network_div.clientWidth / 2 + 40;
+                var y = -network_div.clientHeight / 2 + 40;
+                var step = 70;
+                var legend_i = 0;
+
+                for(var key in options.groups) {
+                    nodes.add({id: randomId(), x: x, y: y + legend_i * step, label: key.capitalize(), group: key, value: 1, fixed: true, physics:true});
+                    legend_i++;
+                }
+
                 function isPrivateIP(ip) {
                    var parts = ip.split('.');
                    return parts[0] === '10' ||
@@ -26,9 +50,9 @@
                     if(a in nodeList) return nodeList[a];
 
                     var id = randomId();
-                    var item = {id:id, label:a};
-                    if(isPrivateIP(a)) item['color'] = 'darkblue';
-                    if(record['local']) item['color'] = {background: 'green'};
+                    var item = {id:id, label:a, group:'internet'};
+                    if(isPrivateIP(a)) item['group'] = 'server';
+                    if(record['local']) item['group'] = 'desktop';
                     nodes.add(item);
                     nodeList[a] = id;
                     return id;
