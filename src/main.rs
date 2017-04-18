@@ -130,8 +130,6 @@ fn main() {
 	loop {
 		match iter.next() {
 			Ok(packet) => {
-				let mut data = data.lock().expect("Unable to lock output");
-
 				let (src, dst): (String, String) = match packet.get_ethertype() {
 					EtherTypes::Ipv4 => {
 						let header = Ipv4Packet::new(packet.payload());
@@ -157,8 +155,10 @@ fn main() {
 							("N/A".to_string(), "N/A".to_string())
 						}
 					},
-					_ => ("N/A".to_string(), "N/A".to_string())
+					_ => { println!("{:?}", packet.get_ethertype()); ("N/A".to_string(), "N/A".to_string()) }
 				};
+
+				let mut data = data.lock().expect("Unable to lock output");
 				data.add(src, dst, packet);
 			},
 			Err(e) => panic!("[!] Unable to receive packet: {}", e),
