@@ -27,7 +27,7 @@ struct Communication {
 	src: String,
 	dst: String,
 	typ: EtherType,
-	val: u32,
+	value: u32,
 	local: bool,
 }
 
@@ -37,7 +37,7 @@ impl ToJson for Communication {
 		d.insert("src".to_string(), self.src.to_json());
 		d.insert("dst".to_string(), self.dst.to_json());
 		d.insert("type".to_string(), format!("{}", self.typ).to_json());
-		d.insert("value".to_string(), self.val.to_json());
+		d.insert("value".to_string(), self.value.to_json());
 		d.insert("local".to_string(), self.local.to_json());
 		Json::Object(d)
 	}
@@ -79,7 +79,7 @@ impl <'a> CommStore {
 	fn add(&mut self, src: String, dst: String, packet: EthernetPacket) {
 		for e in &mut self.data {
 			if e.src == src && e.dst == dst && e.typ == packet.get_ethertype() {
-				e.val += 1;
+				e.value += 1;
 				return;
 			}
 		}
@@ -134,24 +134,24 @@ fn main() {
 				let (src, dst): (String, String) = match packet.get_ethertype() {
 					EtherTypes::Ipv4 => {
 						let header = Ipv4Packet::new(packet.payload());
-						if let Some(header) = header {
-							(header.get_source().to_string(), header.get_destination().to_string())
+						if let Some(header2) = header {
+							(header2.get_source().to_string(), header2.get_destination().to_string())
 						} else {
 							("N/A".to_string(), "N/A".to_string())
 						}
 					},
 					EtherTypes::Ipv6 => {
 						let header = Ipv6Packet::new(packet.payload());
-						if let Some(header) = header {
-							(header.get_source().to_string(), header.get_destination().to_string())
+						if let Some(header2) = header {
+							(header2.get_source().to_string(), header2.get_destination().to_string())
 						} else {
 							("N/A".to_string(), "N/A".to_string())
 						}
 					},
 					EtherTypes::Arp => {
 						let header = ArpPacket::new(packet.payload());
-						if let Some(header) = header {
-							(header.get_sender_proto_addr().to_string(), header.get_target_proto_addr().to_string())
+						if let Some(header2) = header {
+							(header2.get_sender_proto_addr().to_string(), header2.get_target_proto_addr().to_string())
 						} else {
 							("N/A".to_string(), "N/A".to_string())
 						}
