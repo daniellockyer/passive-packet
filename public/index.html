@@ -23,14 +23,15 @@
                       (parts[0] === '192' && parts[1] === '168');
                 }
                 function itemAdder(record, a) {
-                    if(!(a in nodeList)) {
-                        var id = randomId();
-                        var item = {id:id, label:a};
-                        if(isPrivateIP(a)) item['color'] = 'darkblue';
-                        if(record['local']) item['color'] = {background: 'green'};
-                        nodes.add(item);
-                        nodeList[a] = id;
-                    }
+                    if(a in nodeList) return nodeList[a];
+
+                    var id = randomId();
+                    var item = {id:id, label:a};
+                    if(isPrivateIP(a)) item['color'] = 'darkblue';
+                    if(record['local']) item['color'] = {background: 'green'};
+                    nodes.add(item);
+                    nodeList[a] = id;
+                    return id;
                 }
 
                 var request = new XMLHttpRequest();
@@ -43,10 +44,8 @@
                             var src = record['src'];
                             var dst = record['dst'];
 
-                            itemAdder(record, src);
-                            itemAdder(record, dst);
-
-                            var src_id = nodeList[src], dst_id = nodeList[dst];
+                            var src_id = itemAdder(record, src);
+                            var dst_id = itemAdder(record, dst);
 
                             edges.add({
                                 "id": randomId(),
