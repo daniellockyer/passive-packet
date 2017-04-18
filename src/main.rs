@@ -31,6 +31,18 @@ struct Communication {
 	local: bool,
 }
 
+impl Communication {
+	fn new(src: String, dst: String, typ: EtherType, value: u32, local: bool) -> Communication {
+		Communication {
+			src: src,
+			dst: dst,
+			typ: typ, //Unused, just need to fill gap.
+			value: value,
+			local: local
+		}
+	}
+}
+
 impl ToJson for Communication {
 	fn to_json(&self) -> Json {
 		let mut d = BTreeMap::new();
@@ -60,13 +72,7 @@ impl <'a> CommStore {
 		for interface in datalink::interfaces() {
 			if let Some(ips) = interface.ips {
 				for ip in ips {
-					ip_list.push(Communication {
-						src: format!("{}", ip),
-						dst: format!("{}", ip),
-						typ: EtherType(0x0000), //Unused, just need to fill gap.
-						val: 0,
-						local: true
-					});
+					ip_list.push(Communication::new(format!("{}", ip), format!("{}", ip), EtherType(0x0000), 0, true));
 				}
 			}
 		}
@@ -84,7 +90,7 @@ impl <'a> CommStore {
 			}
 		}
 
-		self.data.push(Communication { src: src, dst: dst, typ: packet.get_ethertype(), val: 1, local:false })
+		self.data.push(Communication::new(src, dst, packet.get_ethertype(), 1, false));
 	}
 }
 
