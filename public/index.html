@@ -2,12 +2,18 @@
 <html>
     <head>
         <title>Passive Packet Visualiser</title>
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/vis/4.19.1/vis.min.js" type="text/javascript"></script>
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis/4.19.1/vis.min.css" />
-        <style>html,body{margin:0;padding:0;height:100%;overflow:hidden;}#network{height:100%;}</style>
+        <script src="vis.min.js" type="text/javascript"></script>
+        <link rel="stylesheet" href="vis.min.css" />
+        <style>
+            html,body{margin:0;padding:0;height:100%;overflow:hidden;}#network{height:100%;}
+            .color-legend-elem{font-family: monospace; width:100%;font-weight: bold; font-size: 24px;height:26px;padding:4px;color:#fff;text-align:center;}
+        </style>
     </head>
     <body>
         <div id="network"></div>
+        <div id="color-legend" style="position:fixed;z-index:9001;top:0;left:0;width:150px;height:100%;padding:5px;">
+
+        </div>
         <script>
             window.onload = function () {
                 function randomId() { return (Math.random() * 1e7).toString(32); }
@@ -18,43 +24,36 @@
                 var nodes = new vis.DataSet([]);
                 var edges = new vis.DataSet([]);
                 var options = {
-                    nodes: { scaling: { min: 16, max: 32 }},
-                    edges: { color: '#666666', smooth: false },
+                    edges: { color: '#666666' },
+                    nodes: { font: { color: 'white'}},
                     groups: {
-                        switch: { shape: 'triangle', color: '#FF9900' },
-                        desktop: { shape: 'dot', color: "#2B7CE9" },
-                        mobile: { shape: 'dot', color: "#5A1E5C" },
-                        server: { shape: 'square', color: "#C5000B" },
-                        internet: { shape: 'square', color: "#109618" }
+                        private: { color: "#C5000B" },
+                        broadcast: { color: '#FF9900' },
+                        internet: { color: "#109618" },
+                        desktop: { color: "#2B7CE9" },
+                        unknown: { color: "#5A1E5C" },
+                        other: { color: "#ff00ff" },
                     }
                 };
                 var network = new vis.Network(network_div, {nodes:nodes,edges:edges}, options);
 
-                var x = -network_div.clientWidth / 2 + 40;
-                var y = -network_div.clientHeight / 2 + 40;
-                var step = 70;
+                var x = -network_div.clientWidth / 2 + 50;
+                var y = -network_div.clientHeight / 2 + 30;
+                var step = 40;
                 var legend_i = 0;
 
                 for(var key in options.groups) {
-                    nodes.add({id: randomId(), x: x, y: y + legend_i * step, label: key.capitalize(), group: key, value: 1, fixed: true, physics:true});
-                    legend_i++;
+                    var elem = "<div class='color-legend-elem' style='background:"+options.groups[key].color+"'>"+key.capitalize()+"</div>";
+                    document.getElementById("color-legend").innerHTML += elem;
                 }
 
-                function isPrivateIP(ip) {
-                   var parts = ip.split('.');
-                   return parts[0] === '10' ||
-                      (parts[0] === '172' && (parseInt(parts[1], 10) >= 16 && parseInt(parts[1], 10) <= 31)) ||
-                      (parts[0] === '192' && parts[1] === '168');
-                }
                 function itemAdder(record, a) {
-                    if(a in nodeList) return nodeList[a];
+                    if(record[a] in nodeList) return nodeList[record[a]];
 
                     var id = randomId();
-                    var item = {id:id, label:a, group:'internet'};
-                    if(isPrivateIP(a)) item['group'] = 'server';
-                    if(record['local']) item['group'] = 'desktop';
+                    var item = {id:id, label:record[a], shape: 'box', group: record[a + '_group']};
                     nodes.add(item);
-                    nodeList[a] = id;
+                    nodeList[record[a]] = id;
                     return id;
                 }
 
@@ -65,13 +64,10 @@
                         var start = Date.now();
 
                         data.forEach(function(record) {
-                            var src = record['src'];
-                            var dst = record['dst'];
+                            var src_id = itemAdder(record, 'src');
+                            var dst_id = itemAdder(record, 'dst');
 
-                            var src_id = itemAdder(record, src);
-                            var dst_id = itemAdder(record, dst);
-
-                            if(record['local']) return;
+                            if(record['src_group'] === "private" && record['dst_group'] === "private") return;
 
                             edges.add({
                                 "id": randomId(),
