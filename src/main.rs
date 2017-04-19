@@ -75,8 +75,8 @@ impl CommStore {
 
 		for interface in datalink::interfaces() {
 			for ip in interface.ips {
-				ip_list.push(Communication::new(format!("{}", ip), "private".to_string(), format!("{}", ip),
-					"private".to_string(), vec!("unknown".to_string()), 0));
+				ip_list.push(Communication::new(format!("{}", ip.ip()), "private".to_string(), format!("{}", ip.ip()),
+					"private".to_string(), vec!(), 0));
 			}
 		}
 
