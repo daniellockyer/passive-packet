@@ -74,11 +74,9 @@ impl CommStore {
 		let mut ip_list = Vec::new();
 
 		for interface in datalink::interfaces() {
-			if let Some(ips) = interface.ips {
-				for ip in ips {
-					ip_list.push(Communication::new(format!("{}", ip), "private".to_string(), format!("{}", ip),
-						"private".to_string(), vec!("unknown".to_string()), 0));
-				}
+			for ip in interface.ips {
+				ip_list.push(Communication::new(format!("{}", ip), "private".to_string(), format!("{}", ip),
+					"private".to_string(), vec!("unknown".to_string()), 0));
 			}
 		}
 
