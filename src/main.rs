@@ -88,7 +88,6 @@ impl CommStore {
 	fn add(&mut self, src: String, src_group: String, dst: String, dst_group: String, packet_type: String) {
 		for e in &mut self.data {
 			if e.src == src && e.dst == dst {
-
 				if !e.typ.contains(&packet_type) {
 					e.typ.push(packet_type);
 				}
@@ -129,6 +128,7 @@ fn main() {
 	println!("Listening on http://[::]:3000");
 
 	let (_, mut rx) = match datalink::channel(&interface, Default::default()) {
+	//let (_, mut rx) = match pnet::datalink::pcap::from_file(&Path::new("./banana.pcapng"), Default::default()) {
 		Ok(Ethernet(tx, rx)) => (tx, rx),
 		Ok(_) => panic!("[!] Unhandled channel type"),
 		Err(e) => panic!("[!] Unable to create channel: {}", e),
@@ -139,14 +139,14 @@ fn main() {
 	loop {
 		match iter.next() {
 			Ok(packet) => {
-				let result = peel.traverse(&packet.packet(), vec![]).result;
+				let result = peel.traverse(packet.packet(), vec![]).result;
 				let (mut src, mut dst) = (IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
 				let (mut src_group, mut dst_group) = ("desktop", "desktop");
 				let mut packet_type = "unknown";
 
 				for i in result {
 					// Layer 1
-					if let Some(_) = i.downcast_ref::<EthernetPacket>() { packet_type = "Ethernet"; }
+					if i.downcast_ref::<EthernetPacket>().is_some() { packet_type = "Ethernet"; }
 
 					// Layer 2
 					else if let Some(packet) = i.downcast_ref::<ArpPacket>() {
@@ -166,21 +166,24 @@ fn main() {
 						src = IpAddr::V6(packet.src);
 						dst = IpAddr::V6(packet.dst);
 					}
-					else if let Some(_) = i.downcast_ref::<IcmpPacket>() { packet_type = "ICMP"; }
-					else if let Some(_) = i.downcast_ref::<Icmpv6Packet>() { packet_type = "ICMPv6"; }
-					else if let Some(_) = i.downcast_ref::<EapolPacket>() { packet_type = "EAPOL"; }
+					else if i.downcast_ref::<IcmpPacket>().is_some() { packet_type = "ICMP"; }
+					else if i.downcast_ref::<Icmpv6Packet>().is_some() { packet_type = "ICMPv6"; }
+					else if i.downcast_ref::<EapolPacket>().is_some() { packet_type = "EAPOL"; }
 
 					// Layer 4
-					else if let Some(_) = i.downcast_ref::<UdpPacket>() { packet_type = "UDP"; }
-					else if let Some(_) = i.downcast_ref::<TcpPacket>() { packet_type = "TCP"; }
+					else if i.downcast_ref::<UdpPacket>().is_some() { packet_type = "UDP"; }
+					else if i.downcast_ref::<TcpPacket>().is_some() { packet_type = "TCP"; }
+					else if i.downcast_ref::<IgmpPacket>().is_some() { packet_type = "IGMP"; }
 
 					// Layer 7
-					else if let Some(_) = i.downcast_ref::<DhcpPacket>() { packet_type = "DHCP"; }
-					else if let Some(_) = i.downcast_ref::<DnsPacket>() { packet_type = "DNS"; }
-					else if let Some(_) = i.downcast_ref::<HttpPacket>() { packet_type = "HTTP"; }
-					else if let Some(_) = i.downcast_ref::<NtpPacket>() { packet_type = "NTP"; }
-					else if let Some(_) = i.downcast_ref::<SsdpPacket>() { packet_type = "SSDP"; }
-					else if let Some(_) = i.downcast_ref::<TlsPacket>() { packet_type = "TLS"; }
+					else if i.downcast_ref::<DhcpPacket>().is_some() { packet_type = "DHCP"; }
+					else if i.downcast_ref::<Dhcpv6Packet>().is_some() { packet_type = "DHCPv6"; }
+					else if i.downcast_ref::<DnsPacket>().is_some() { packet_type = "DNS"; }
+					else if i.downcast_ref::<HttpPacket>().is_some() { packet_type = "HTTP"; }
+					else if i.downcast_ref::<NtpPacket>().is_some() { packet_type = "NTP"; }
+					else if i.downcast_ref::<SsdpPacket>().is_some() { packet_type = "SSDP"; }
+					else if i.downcast_ref::<TlsPacket>().is_some() { packet_type = "TLS"; }
+					else if i.downcast_ref::<NatpmpPacket>().is_some() { packet_type = "NAT-PMP"; }
 
 					else { println!("{:?}", packet.packet()); }
 				}
@@ -200,7 +203,7 @@ fn main() {
 				let mut data = data.lock().expect("Unable to lock output");
 				data.add(src.to_string(), src_group.to_string(), dst.to_string(), dst_group.to_string(), packet_type.to_string());
 			},
-			Err(e) => panic!("[!] Unable to receive packet: {}", e),
+			Err(_) => continue
 		}
 	}
 }
