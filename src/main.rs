@@ -148,41 +148,41 @@ fn main() {
 
 				for i in result {
 					// Layer 1
-					if let Some(_) = i.downcast_ref::<peel_ip::prelude::EthernetPacket>() { packet_type = "Ethernet"; }
+					if let Some(_) = i.downcast_ref::<EthernetPacket>() { packet_type = "Ethernet"; }
 
 					// Layer 2
-					else if let Some(packet) = i.downcast_ref::<peel_ip::prelude::ArpPacket>() {
+					else if let Some(packet) = i.downcast_ref::<ArpPacket>() {
 						packet_type = "Arp";
 						src = IpAddr::V4(packet.sender_protocol_address);
 						dst = IpAddr::V4(packet.target_protocol_address);
 					}
 
 					// Layer 3
-					else if let Some(packet) = i.downcast_ref::<peel_ip::prelude::Ipv4Packet>() {
+					else if let Some(packet) = i.downcast_ref::<Ipv4Packet>() {
 						packet_type = "IPv4";
 						src = IpAddr::V4(packet.src);
 						dst = IpAddr::V4(packet.dst);
 					}
-					else if let Some(packet) = i.downcast_ref::<peel_ip::prelude::Ipv6Packet>() {
+					else if let Some(packet) = i.downcast_ref::<Ipv6Packet>() {
 						packet_type = "IPv6";
 						src = IpAddr::V6(packet.src);
 						dst = IpAddr::V6(packet.dst);
 					}
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::IcmpPacket>() { packet_type = "ICMP"; }
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::Icmpv6Packet>() { packet_type = "ICMPv6"; }
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::EapolPacket>() { packet_type = "EAPOL"; }
+					else if let Some(_) = i.downcast_ref::<IcmpPacket>() { packet_type = "ICMP"; }
+					else if let Some(_) = i.downcast_ref::<Icmpv6Packet>() { packet_type = "ICMPv6"; }
+					else if let Some(_) = i.downcast_ref::<EapolPacket>() { packet_type = "EAPOL"; }
 
 					// Layer 4
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::UdpPacket>() { packet_type = "UDP"; }
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::TcpPacket>() { packet_type = "TCP"; }
+					else if let Some(_) = i.downcast_ref::<UdpPacket>() { packet_type = "UDP"; }
+					else if let Some(_) = i.downcast_ref::<TcpPacket>() { packet_type = "TCP"; }
 
 					// Layer 7
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::DhcpPacket>() { packet_type = "DHCP"; }
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::DnsPacket>() { packet_type = "DNS"; }
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::HttpPacket>() { packet_type = "HTTP"; }
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::NtpPacket>() { packet_type = "NTP"; }
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::SsdpPacket>() { packet_type = "SSDP"; }
-					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::TlsPacket>() { packet_type = "TLS"; }
+					else if let Some(_) = i.downcast_ref::<DhcpPacket>() { packet_type = "DHCP"; }
+					else if let Some(_) = i.downcast_ref::<DnsPacket>() { packet_type = "DNS"; }
+					else if let Some(_) = i.downcast_ref::<HttpPacket>() { packet_type = "HTTP"; }
+					else if let Some(_) = i.downcast_ref::<NtpPacket>() { packet_type = "NTP"; }
+					else if let Some(_) = i.downcast_ref::<SsdpPacket>() { packet_type = "SSDP"; }
+					else if let Some(_) = i.downcast_ref::<TlsPacket>() { packet_type = "TLS"; }
 
 					else { println!("{:?}", packet.packet()); }
 				}
