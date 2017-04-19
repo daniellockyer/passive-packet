@@ -19,7 +19,6 @@
                 function randomId() { return (Math.random() * 1e7).toString(32); }
                 String.prototype.capitalize = function() { return this.charAt(0).toUpperCase() + this.slice(1); }
 
-                var network_div = document.getElementById('network');
                 var nodeList = [];
                 var nodes = new vis.DataSet([]);
                 var edges = new vis.DataSet([]);
@@ -35,12 +34,7 @@
                         other: { color: "#ff00ff" },
                     }
                 };
-                var network = new vis.Network(network_div, {nodes:nodes,edges:edges}, options);
-
-                var x = -network_div.clientWidth / 2 + 50;
-                var y = -network_div.clientHeight / 2 + 30;
-                var step = 40;
-                var legend_i = 0;
+                var network = new vis.Network(document.getElementById('network'), {nodes:nodes,edges:edges}, options);
 
                 for(var key in options.groups) {
                     var elem = "<div class='color-legend-elem' style='background:"+options.groups[key].color+"'>"+key.capitalize()+"</div>";
@@ -75,7 +69,6 @@
                                 "to": dst_id,
                                 "label": record['type']+"("+record['value']+")",
                                 "arrows": "to",
-                                "value": record['value']
                             });
                         });
                         console.log("Done in " + (Date.now() - start) + "ms");

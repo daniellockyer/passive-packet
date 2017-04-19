@@ -3,8 +3,11 @@ name = "passive-packet"
 version = "0.1.0"
 authors = ["Daniel Lockyer <thisisdaniellockyer@gmail.com>"]
 
+[dependencies.pnet]
+path = "../libpnet"
+features = ["pcap"]
+
 [dependencies]
-pnet = "0.17"
 iron = "0.5"
 staticfile = "0.4"
 mount = "0.3"
