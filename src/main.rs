@@ -1,3 +1,6 @@
+#![feature(ip)]
+
+extern crate peel_ip;
 extern crate rustc_serialize;
 extern crate pnet;
 extern crate iron;
@@ -9,36 +12,36 @@ use std::path::Path;
 use std::collections::BTreeMap;
 use std::io::{self, Write};
 use std::sync::{Mutex, Arc};
+use std::net::{IpAddr, Ipv4Addr};
 
 use rustc_serialize::json::{ToJson, Json};
 use iron::{Iron, Request, Response};
 use staticfile::Static;
 use mount::Mount;
 
+use peel_ip::prelude::*;
 use pnet::packet::Packet;
-use pnet::packet::ethernet::{EtherTypes, EtherType, EthernetPacket};
-use pnet::packet::ipv4::Ipv4Packet;
-use pnet::packet::ipv6::Ipv6Packet;
-use pnet::packet::arp::ArpPacket;
 use pnet::datalink::{self, NetworkInterface};
 use pnet::datalink::Channel::Ethernet;
 
 struct Communication {
 	src: String,
+	src_group: String,
 	dst: String,
-	typ: EtherType,
+	dst_group: String,
+	typ: Vec<String>,
 	value: u32,
-	local: bool,
 }
 
 impl Communication {
-	fn new(src: String, dst: String, typ: EtherType, value: u32, local: bool) -> Communication {
+	fn new(src: String, src_group: String, dst: String, dst_group: String, typ: Vec<String>, value: u32) -> Communication {
 		Communication {
 			src: src,
+			src_group: src_group,
 			dst: dst,
-			typ: typ, //Unused, just need to fill gap.
+			dst_group: dst_group,
+			typ: typ,
 			value: value,
-			local: local
 		}
 	}
 }
@@ -47,10 +50,11 @@ impl ToJson for Communication {
 	fn to_json(&self) -> Json {
 		let mut d = BTreeMap::new();
 		d.insert("src".to_string(), self.src.to_json());
+		d.insert("src_group".to_string(), self.src_group.to_json());
 		d.insert("dst".to_string(), self.dst.to_json());
-		d.insert("type".to_string(), format!("{}", self.typ).to_json());
+		d.insert("dst_group".to_string(), self.dst_group.to_json());
+		d.insert("type".to_string(), self.typ.to_json());
 		d.insert("value".to_string(), self.value.to_json());
-		d.insert("local".to_string(), self.local.to_json());
 		Json::Object(d)
 	}
 }
@@ -72,7 +76,8 @@ impl CommStore {
 		for interface in datalink::interfaces() {
 			if let Some(ips) = interface.ips {
 				for ip in ips {
-					ip_list.push(Communication::new(format!("{}", ip), format!("{}", ip), EtherType(0x0000), 0, true));
+					ip_list.push(Communication::new(format!("{}", ip), "private".to_string(), format!("{}", ip),
+						"private".to_string(), vec!("unknown".to_string()), 0));
 				}
 			}
 		}
@@ -82,15 +87,20 @@ impl CommStore {
 		}
 	}
 
-	fn add(&mut self, src: String, dst: String, packet: EthernetPacket) {
+	fn add(&mut self, src: String, src_group: String, dst: String, dst_group: String, packet_type: String) {
 		for e in &mut self.data {
-			if e.src == src && e.dst == dst && e.typ == packet.get_ethertype() {
+			if e.src == src && e.dst == dst {
+
+				if !e.typ.contains(&packet_type) {
+					e.typ.push(packet_type);
+				}
+
 				e.value += 1;
 				return;
 			}
 		}
 
-		self.data.push(Communication::new(src, dst, packet.get_ethertype(), 1, false));
+		self.data.push(Communication::new(src, src_group, dst, dst_group, vec!(packet_type), 1));
 	}
 }
 
@@ -126,40 +136,71 @@ fn main() {
 		Err(e) => panic!("[!] Unable to create channel: {}", e),
 	};
 
+	let mut peel = PeelIp::default();
 	let mut iter = rx.iter();
 	loop {
 		match iter.next() {
 			Ok(packet) => {
-				let (src, dst): (String, String) = match packet.get_ethertype() {
-					EtherTypes::Ipv4 => {
-						let header = Ipv4Packet::new(packet.payload());
-						if let Some(header2) = header {
-							(header2.get_source().to_string(), header2.get_destination().to_string())
-						} else {
-							("N/A".to_string(), "N/A".to_string())
-						}
-					},
-					EtherTypes::Ipv6 => {
-						let header = Ipv6Packet::new(packet.payload());
-						if let Some(header2) = header {
-							(header2.get_source().to_string(), header2.get_destination().to_string())
-						} else {
-							("N/A".to_string(), "N/A".to_string())
-						}
-					},
-					EtherTypes::Arp => {
-						let header = ArpPacket::new(packet.payload());
-						if let Some(header2) = header {
-							(header2.get_sender_proto_addr().to_string(), header2.get_target_proto_addr().to_string())
-						} else {
-							("N/A".to_string(), "N/A".to_string())
-						}
-					},
-					_ => { println!("{:?}", packet.get_ethertype()); ("N/A".to_string(), "N/A".to_string()) }
-				};
+				let result = peel.traverse(&packet.packet(), vec![]).result;
+				let (mut src, mut dst) = (IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
+				let (mut src_group, mut dst_group) = ("desktop", "desktop");
+				let mut packet_type = "unknown";
+
+				for i in result {
+					// Layer 1
+					if let Some(_) = i.downcast_ref::<peel_ip::prelude::EthernetPacket>() { packet_type = "Ethernet"; }
+
+					// Layer 2
+					else if let Some(packet) = i.downcast_ref::<peel_ip::prelude::ArpPacket>() {
+						packet_type = "Arp";
+						src = IpAddr::V4(packet.sender_protocol_address);
+						dst = IpAddr::V4(packet.target_protocol_address);
+					}
+
+					// Layer 3
+					else if let Some(packet) = i.downcast_ref::<peel_ip::prelude::Ipv4Packet>() {
+						packet_type = "IPv4";
+						src = IpAddr::V4(packet.src);
+						dst = IpAddr::V4(packet.dst);
+					}
+					else if let Some(packet) = i.downcast_ref::<peel_ip::prelude::Ipv6Packet>() {
+						packet_type = "IPv6";
+						src = IpAddr::V6(packet.src);
+						dst = IpAddr::V6(packet.dst);
+					}
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::IcmpPacket>() { packet_type = "ICMP"; }
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::Icmpv6Packet>() { packet_type = "ICMPv6"; }
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::EapolPacket>() { packet_type = "EAPOL"; }
+
+					// Layer 4
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::UdpPacket>() { packet_type = "UDP"; }
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::TcpPacket>() { packet_type = "TCP"; }
+
+					// Layer 7
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::DhcpPacket>() { packet_type = "DHCP"; }
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::DnsPacket>() { packet_type = "DNS"; }
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::HttpPacket>() { packet_type = "HTTP"; }
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::NtpPacket>() { packet_type = "NTP"; }
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::SsdpPacket>() { packet_type = "SSDP"; }
+					else if let Some(_) = i.downcast_ref::<peel_ip::prelude::TlsPacket>() { packet_type = "TLS"; }
+
+					else { println!("{:?}", packet.packet()); }
+				}
+
+				if src.is_multicast() { src_group = "broadcast"; }
+				if dst.is_multicast() { dst_group = "broadcast"; }
+
+				if src.is_global() { src_group = "internet"; }
+				if dst.is_global() { dst_group = "internet"; }
+
+				if src.is_unspecified() { src_group = "unknown"; }
+				if dst.is_unspecified() { dst_group = "unknown"; }
+
+				if src.is_documentation() { src_group = "other"; }
+				if dst.is_documentation() { dst_group = "other"; }
 
 				let mut data = data.lock().expect("Unable to lock output");
-				data.add(src, dst, packet);
+				data.add(src.to_string(), src_group.to_string(), dst.to_string(), dst_group.to_string(), packet_type.to_string());
 			},
 			Err(e) => panic!("[!] Unable to receive packet: {}", e),
 		}

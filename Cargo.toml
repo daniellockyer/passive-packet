@@ -4,8 +4,9 @@ version = "0.1.0"
 authors = ["Daniel Lockyer <thisisdaniellockyer@gmail.com>"]
 
 [dependencies]
-pnet = "0.16.0"
-iron = "0.5.1"
-staticfile = "0.4.0"
-mount = "0.3.0"
-rustc-serialize = "0.3.23"
+pnet = "0.16"
+iron = "0.5"
+staticfile = "0.4"
+mount = "0.3"
+rustc-serialize = "0.3"
+peel-ip = { path = "../peel-ip" }
