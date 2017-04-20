@@ -5,41 +5,39 @@ extern crate curl;
 extern crate rustc_serialize;
 extern crate pnet;
 
+mod common;
+use common::{CommStore,Communication};
+
+use curl::easy::Easy;
 use std::{env,process};
 use std::io::{self, Write, Read};
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 
-mod common;
-use common::{CommStore,Communication};
-
 use rustc_serialize::json;
 use peel_ip::prelude::*;
 use pnet::packet::Packet;
-use pnet::datalink::{self, NetworkInterface};
+use pnet::datalink::NetworkInterface;
 use pnet::datalink::Channel::Ethernet;
 
-use curl::easy::Easy;
-
 fn main() {
-	let iface_name = env::args().nth(1).unwrap_or_else(|| {
-		writeln!(io::stderr(), "[!] Usage:\n\n\tclient <interface>\n\tclient --file <file.pcap>").unwrap();
+	let failover = || {
+		writeln!(io::stderr(), "[!] Usage:\n\tclient <interface>\n\tclient --file <file.pcap>").unwrap();
 		process::exit(1);
-	});
+	};
+
+	let iface_name = env::args().nth(1).unwrap_or_else(&failover);
 
 	let channel = if iface_name == "--file" {
-		let file_location = env::args().nth(2).unwrap_or_else(|| {
-			writeln!(io::stderr(), "[!] Usage:\n\n\tclient <interface>\n\tclient --file <file.pcap>").unwrap();
-			process::exit(1);
-		});
+		let file_location = env::args().nth(2).unwrap_or_else(&failover);
 		pnet::datalink::pcap::from_file(&Path::new(&file_location), Default::default())
 	} else {
-		let interface = datalink::interfaces().into_iter()
-			.find(|iface: &NetworkInterface| iface.name == iface_name).unwrap_or_else(|| {
+		let interface = pnet::datalink::interfaces().into_iter()
+			.find(|i: &NetworkInterface| i.name == iface_name).unwrap_or_else(|| {
 				writeln!(io::stderr(), "[!] That interface does not exist.").unwrap();
 				process::exit(1);
 			});
-		datalink::channel(&interface, Default::default())
+		pnet::datalink::channel(&interface, Default::default())
 	};
 
 	let (_, mut rx) = match channel {
@@ -106,6 +104,8 @@ fn main() {
 					else { println!("{:?}", packet.packet()); }
 				}
 
+				if src == dst { continue; }
+
 				if src.is_multicast() { src_group = "broadcast"; }
 				if dst.is_multicast() { dst_group = "broadcast"; }
 
@@ -117,10 +117,6 @@ fn main() {
 
 				if src.is_documentation() { src_group = "other"; }
 				if dst.is_documentation() { dst_group = "other"; }
-
-				if src == dst {
-					continue;
-				}
 
 				data.add(Communication {
 					src: src.to_string(),
@@ -141,11 +137,10 @@ fn main() {
 					easy.post_field_size(data2.len() as u64).unwrap();
 
 					let mut transfer = easy.transfer();
-
 					transfer.read_function(|buf| { Ok(data2.read(buf).unwrap_or(0)) }).unwrap();
 					transfer.perform().unwrap();
 
-					data.clear();
+					data.data.clear();
 					count = 0;
 				}
 			},

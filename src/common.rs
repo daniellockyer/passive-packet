@@ -36,23 +36,13 @@ impl CommStore {
 
 		for interface in datalink::interfaces() {
 			for ip in interface.ips {
-				ip_list.push(Communication::new(format!("{}", ip.ip()), "private".to_string(), format!("{}", ip.ip()),
+				ip_list.push(Communication::new(ip.ip().to_string(), "private".to_string(), ip.ip().to_string(),
 					"private".to_string(), vec!(), 0));
 			}
 		}
 
 		CommStore {
 			data: ip_list
-		}
-	}
-
-	pub fn clear(&mut self) {
-		self.data.clear();
-	}
-
-	pub fn extend(&mut self, store: CommStore) {
-		for c in store.data {
-			self.add(c);
 		}
 	}
 
