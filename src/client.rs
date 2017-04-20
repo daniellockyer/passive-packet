@@ -1,141 +1,59 @@
 #![feature(ip)]
 
 extern crate peel_ip;
+extern crate curl;
 extern crate rustc_serialize;
 extern crate pnet;
-extern crate iron;
-extern crate staticfile;
-extern crate mount;
 
-use std::{env,thread,process};
-use std::path::Path;
-use std::collections::BTreeMap;
-use std::io::{self, Write};
-use std::sync::{Mutex, Arc};
+use std::{env,process};
+use std::io::{self, Write, Read};
 use std::net::{IpAddr, Ipv4Addr};
+use std::path::Path;
 
-use rustc_serialize::json::{ToJson, Json};
-use iron::{Iron, Request, Response};
-use staticfile::Static;
-use mount::Mount;
+mod common;
+use common::{CommStore,Communication};
 
+use rustc_serialize::json;
 use peel_ip::prelude::*;
 use pnet::packet::Packet;
 use pnet::datalink::{self, NetworkInterface};
 use pnet::datalink::Channel::Ethernet;
 
-struct Communication {
-	src: String,
-	src_group: String,
-	dst: String,
-	dst_group: String,
-	typ: Vec<String>,
-	value: u32,
-}
-
-impl Communication {
-	fn new(src: String, src_group: String, dst: String, dst_group: String, typ: Vec<String>, value: u32) -> Communication {
-		Communication {
-			src: src,
-			src_group: src_group,
-			dst: dst,
-			dst_group: dst_group,
-			typ: typ,
-			value: value,
-		}
-	}
-}
-
-impl ToJson for Communication {
-	fn to_json(&self) -> Json {
-		let mut d = BTreeMap::new();
-		d.insert("src".to_string(), self.src.to_json());
-		d.insert("src_group".to_string(), self.src_group.to_json());
-		d.insert("dst".to_string(), self.dst.to_json());
-		d.insert("dst_group".to_string(), self.dst_group.to_json());
-		d.insert("type".to_string(), self.typ.to_json());
-		d.insert("value".to_string(), self.value.to_json());
-		Json::Object(d)
-	}
-}
-
-struct CommStore {
-	data: Vec<Communication>,
-}
-
-impl ToJson for CommStore {
-	fn to_json(&self) -> Json {
-		self.data.to_json()
-	}
-}
-
-impl CommStore {
-	fn new() -> CommStore {
-		let mut ip_list = Vec::new();
-
-		for interface in datalink::interfaces() {
-			for ip in interface.ips {
-				ip_list.push(Communication::new(format!("{}", ip.ip()), "private".to_string(), format!("{}", ip.ip()),
-					"private".to_string(), vec!(), 0));
-			}
-		}
-
-		CommStore {
-			data: ip_list
-		}
-	}
-
-	fn add(&mut self, src: String, src_group: String, dst: String, dst_group: String, packet_type: String) {
-		for e in &mut self.data {
-			if e.src == src && e.dst == dst {
-				if !e.typ.contains(&packet_type) {
-					e.typ.push(packet_type);
-				}
-
-				e.value += 1;
-				return;
-			}
-		}
-
-		self.data.push(Communication::new(src, src_group, dst, dst_group, vec!(packet_type), 1));
-	}
-}
+use curl::easy::Easy;
 
 fn main() {
 	let iface_name = env::args().nth(1).unwrap_or_else(|| {
-		writeln!(io::stderr(), "[!] Usage: passive-packet <interface>").unwrap();
+		writeln!(io::stderr(), "[!] Usage:\n\n\tclient <interface>\n\tclient --file <file.pcap>").unwrap();
 		process::exit(1);
 	});
 
-	let interface = datalink::interfaces().into_iter()
-						.find(|iface: &NetworkInterface| iface.name == iface_name)
-						.unwrap_or_else(|| {
-							writeln!(io::stderr(), "[!] That interface does not exist.").unwrap();
-							process::exit(1);
-						});
+	let channel = if iface_name == "--file" {
+		let file_location = env::args().nth(2).unwrap_or_else(|| {
+			writeln!(io::stderr(), "[!] Usage:\n\n\tclient <interface>\n\tclient --file <file.pcap>").unwrap();
+			process::exit(1);
+		});
+		pnet::datalink::pcap::from_file(&Path::new(&file_location), Default::default())
+	} else {
+		let interface = datalink::interfaces().into_iter()
+			.find(|iface: &NetworkInterface| iface.name == iface_name).unwrap_or_else(|| {
+				writeln!(io::stderr(), "[!] That interface does not exist.").unwrap();
+				process::exit(1);
+			});
+		datalink::channel(&interface, Default::default())
+	};
 
-	let data = Arc::new(Mutex::new(CommStore::new()));
-	let data_closure = data.clone();
-	let mut mount = Mount::new();
-
-	mount.mount("/", Static::new(Path::new("public"))).mount("/data", move |_: &mut Request| {
-		let data2 = &(*data_closure.lock().expect("Unable to lock output"));
-		let json_data = data2.to_json();
-		Ok(Response::with((iron::status::Ok, json_data.to_string())))
-	});
-
-	thread::spawn(|| Iron::new(mount).http("[::]:3000").unwrap());
-	println!("Listening on http://[::]:3000");
-
-	let (_, mut rx) = match datalink::channel(&interface, Default::default()) {
-	//let (_, mut rx) = match pnet::datalink::pcap::from_file(&Path::new("./banana.pcapng"), Default::default()) {
+	let (_, mut rx) = match channel {
 		Ok(Ethernet(tx, rx)) => (tx, rx),
 		Ok(_) => panic!("[!] Unhandled channel type"),
 		Err(e) => panic!("[!] Unable to create channel: {}", e),
 	};
 
+	let mut data = CommStore::new();
 	let mut peel = PeelIp::default();
 	let mut iter = rx.iter();
+	let mut easy = Easy::new();
+	let mut count = 0;
+
 	loop {
 		match iter.next() {
 			Ok(packet) => {
@@ -200,8 +118,36 @@ fn main() {
 				if src.is_documentation() { src_group = "other"; }
 				if dst.is_documentation() { dst_group = "other"; }
 
-				let mut data = data.lock().expect("Unable to lock output");
-				data.add(src.to_string(), src_group.to_string(), dst.to_string(), dst_group.to_string(), packet_type.to_string());
+				if src == dst {
+					continue;
+				}
+
+				data.add(Communication {
+					src: src.to_string(),
+					src_group: src_group.to_string(),
+					dst: dst.to_string(),
+					dst_group: dst_group.to_string(),
+					typ: vec!(packet_type.to_string()),
+					value: 1,
+				});
+				count += 1;
+
+				if count > 100 {
+					let data_to_send = json::encode(&data).unwrap();
+					let mut data2 = data_to_send.as_bytes();
+					
+					easy.url("http://[::]:3000/new").unwrap();
+					easy.post(true).unwrap();
+					easy.post_field_size(data2.len() as u64).unwrap();
+
+					let mut transfer = easy.transfer();
+
+					transfer.read_function(|buf| { Ok(data2.read(buf).unwrap_or(0)) }).unwrap();
+					transfer.perform().unwrap();
+
+					data.clear();
+					count = 0;
+				}
 			},
 			Err(_) => continue
 		}
