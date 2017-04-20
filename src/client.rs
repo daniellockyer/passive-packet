@@ -26,18 +26,20 @@ fn main() {
 		process::exit(1);
 	};
 
-	let iface_name = env::args().nth(1).unwrap_or_else(&failover);
+	let first_arg = env::args().nth(1).unwrap_or_else(&failover);
 
-	let channel = if iface_name == "--file" {
+	let mut file_mode = false;
+
+	let channel = if first_arg == "--file" {
+		file_mode = true;
 		let file_location = env::args().nth(2).unwrap_or_else(&failover);
 		pnet::datalink::pcap::from_file(&Path::new(&file_location), Default::default())
 	} else {
-		let interface = pnet::datalink::interfaces().into_iter()
-			.find(|i: &NetworkInterface| i.name == iface_name).unwrap_or_else(|| {
+		pnet::datalink::channel(&pnet::datalink::interfaces().into_iter()
+			.find(|i: &NetworkInterface| i.name == first_arg).unwrap_or_else(|| {
 				writeln!(io::stderr(), "[!] That interface does not exist.").unwrap();
 				process::exit(1);
-			});
-		pnet::datalink::channel(&interface, Default::default())
+			}), Default::default())
 	};
 
 	let (_, mut rx) = match channel {
@@ -100,6 +102,7 @@ fn main() {
 					else if i.downcast_ref::<SsdpPacket>().is_some() { packet_type = "SSDP"; }
 					else if i.downcast_ref::<TlsPacket>().is_some() { packet_type = "TLS"; }
 					else if i.downcast_ref::<NatpmpPacket>().is_some() { packet_type = "NAT-PMP"; }
+					else if i.downcast_ref::<RadiusPacket>().is_some() { packet_type = "RADIUS"; }
 
 					else { println!("{:?}", packet.packet()); }
 				}
@@ -128,10 +131,10 @@ fn main() {
 				});
 				count += 1;
 
-				if count > 100 {
+				if count > 100 || file_mode {
 					let data_to_send = json::encode(&data).unwrap();
 					let mut data2 = data_to_send.as_bytes();
-					
+
 					easy.url("http://[::]:3000/new").unwrap();
 					easy.post(true).unwrap();
 					easy.post_field_size(data2.len() as u64).unwrap();
@@ -144,7 +147,12 @@ fn main() {
 					count = 0;
 				}
 			},
-			Err(_) => continue
+			Err(_) => {
+				if file_mode {
+					process::exit(0);
+				}
+				continue;
+			}
 		}
 	}
 }

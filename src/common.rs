@@ -12,19 +12,6 @@ pub struct Communication {
 	pub value: u32,
 }
 
-impl Communication {
-	pub fn new(src: String, src_group: String, dst: String, dst_group: String, typ: Vec<String>, value: u32) -> Communication {
-		Communication {
-			src: src,
-			src_group: src_group,
-			dst: dst,
-			dst_group: dst_group,
-			typ: typ,
-			value: value,
-		}
-	}
-}
-
 #[derive(Debug, RustcDecodable, RustcEncodable)]
 pub struct CommStore {
 	pub data: Vec<Communication>,
@@ -36,8 +23,14 @@ impl CommStore {
 
 		for interface in datalink::interfaces() {
 			for ip in interface.ips {
-				ip_list.push(Communication::new(ip.ip().to_string(), "private".to_string(), ip.ip().to_string(),
-					"private".to_string(), vec!(), 0));
+				ip_list.push(Communication {
+					src: ip.ip().to_string(),
+					src_group: "private".to_string(),
+					dst: ip.ip().to_string(),
+					dst_group: "private".to_string(),
+					typ: vec!(),
+					value: 0
+				});
 			}
 		}
 
