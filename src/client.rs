@@ -1,8 +1,11 @@
 #![feature(ip)]
 
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
 extern crate peel_ip;
 extern crate curl;
-extern crate rustc_serialize;
 extern crate pnet;
 
 mod common;
@@ -14,7 +17,6 @@ use std::io::{self, Write, Read};
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 
-use rustc_serialize::json;
 use peel_ip::prelude::*;
 use pnet::packet::Packet;
 use pnet::datalink::NetworkInterface;
@@ -132,7 +134,7 @@ fn main() {
 				count += 1;
 
 				if count > 100 || file_mode {
-					let data_to_send = json::encode(&data).unwrap();
+					let data_to_send = serde_json::to_string(&data).unwrap();
 					let mut data2 = data_to_send.as_bytes();
 
 					easy.url("http://[::]:3000/new").unwrap();

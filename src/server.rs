@@ -1,4 +1,7 @@
-extern crate rustc_serialize;
+#[macro_use]
+extern crate serde_derive;
+extern crate serde;
+extern crate serde_json;
 extern crate iron;
 extern crate staticfile;
 extern crate mount;
@@ -7,7 +10,6 @@ mod common;
 
 use std::io::Read;
 use std::sync::{Arc, Mutex};
-use rustc_serialize::json;
 use iron::{Iron, Request, Response};
 use mount::Mount;
 
@@ -20,14 +22,14 @@ fn main() {
 		.mount("/", staticfile::Static::new(std::path::Path::new("public")))
 		.mount("/data", move |_: &mut Request| {
 			let data2 = &(*data_clone.lock().expect("Unable to lock output"));
-			let json_data = json::encode(data2).unwrap();
+			let json_data = serde_json::to_string(data2).unwrap();
 			Ok(Response::with((iron::status::Ok, json_data.to_string())))
 		})
 		.mount("/new", move |req: &mut Request| {
 			let mut payload = String::new();
         	req.body.read_to_string(&mut payload).unwrap();
 
-			let decoded: common::CommStore = json::decode(&payload).unwrap();
+			let decoded: common::CommStore = serde_json::from_str(&payload).unwrap();
 			let mut curr_store = data.lock().expect("Unable to lock output");
 
 			for c in decoded.data {

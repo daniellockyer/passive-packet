@@ -2,7 +2,7 @@ extern crate pnet;
 
 use self::pnet::datalink;
 
-#[derive(Debug, RustcDecodable, RustcEncodable)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Communication {
 	pub src: String,
 	pub src_group: String,
@@ -12,7 +12,7 @@ pub struct Communication {
 	pub value: u32,
 }
 
-#[derive(Debug, RustcDecodable, RustcEncodable)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct CommStore {
 	pub data: Vec<Communication>,
 }
@@ -43,7 +43,7 @@ impl CommStore {
 		for e in &mut self.data {
 			for t in &comm.typ {
 				if e.src == comm.src && e.dst == comm.dst {
-					if !e.typ.contains(&t) {
+					if !e.typ.contains(t) {
 						e.typ.push(t.clone());
 					}
 
