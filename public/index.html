@@ -51,31 +51,42 @@
                     return id;
                 }
 
-                var request = new XMLHttpRequest();
-                request.onreadystatechange = function() {
-                     if (request.readyState === 4 && request.status === 200) {
-                        var data = JSON.parse(request.responseText).data;
-                        var start = Date.now();
+                function reload() {
+                    nodeList = [];
+                    nodes.clear();
+                    edges.clear();
 
-                        data.forEach(function(record) {
-                            var src_id = itemAdder(record, 'src');
-                            var dst_id = itemAdder(record, 'dst');
+                    var request = new XMLHttpRequest();
+                    request.onreadystatechange = function() {
+                         if (request.readyState === 4 && request.status === 200) {
+                            var data = JSON.parse(request.responseText).data;
+                            var start = Date.now();
 
-                            if(record['src_group'] === "private" && record['dst_group'] === "private") return;
+                            data.forEach(function(record) {
+                                var src_id = itemAdder(record, 'src');
+                                var dst_id = itemAdder(record, 'dst');
 
-                            edges.add({
-                                "id": randomId(),
-                                "from": src_id,
-                                "to": dst_id,
-                                "label": record['typ']+"("+record['value']+")",
-                                "arrows": "to",
+                                if(record['src_group'] === "private" && record['dst_group'] === "private") return;
+
+                                edges.add({
+                                    "id": randomId(),
+                                    "from": src_id,
+                                    "to": dst_id,
+                                    "label": record['typ']+"("+record['value']+")",
+                                    "arrows": "to",
+                                });
                             });
-                        });
-                        console.log("Done in " + (Date.now() - start) + "ms");
-                     }
-                  }
-                request.open('GET', '/data', true);
-                request.send();
+                            console.log("Done in " + (Date.now() - start) + "ms");
+                         }
+                      }
+                    request.open('GET', '/data', true);
+                    request.send();
+                }
+
+                window.onkeypress = function(event) {
+                    if (event.keyCode === 114) reload();
+                }
+                reload();
             };
         </script>
     </body>

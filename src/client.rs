@@ -80,6 +80,8 @@ fn main() {
 						packet_type = "IPv4";
 						src = IpAddr::V4(packet.src);
 						dst = IpAddr::V4(packet.dst);
+                        if packet.src.is_broadcast() { src_group = "broadcast"; }
+		        		if packet.dst.is_broadcast() { dst_group = "broadcast"; }
 					}
 					else if let Some(packet) = i.downcast_ref::<Ipv6Packet>() {
 						packet_type = "IPv6";
@@ -117,8 +119,8 @@ fn main() {
 				if src.is_global() { src_group = "internet"; }
 				if dst.is_global() { dst_group = "internet"; }
 
-				if src.is_unspecified() { src_group = "unknown"; }
-				if dst.is_unspecified() { dst_group = "unknown"; }
+				if src.is_unspecified() { src_group = "broadcast"; }
+				if dst.is_unspecified() { dst_group = "broadcast"; }
 
 				if src.is_documentation() { src_group = "other"; }
 				if dst.is_documentation() { dst_group = "other"; }
