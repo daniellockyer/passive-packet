@@ -12,15 +12,15 @@ name = "server"
 path = "src/server.rs"
 
 [dependencies.pnet]
-path = "../libpnet"
+version = "0.20.0"
 features = ["pcap"]
 
 [dependencies]
-curl = "0.4"
-iron = "0.5"
-staticfile = "0.4"
-mount = "0.3"
 serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
-peel-ip = { path = "../peel-ip" }
+curl = "0.4.8"
+iron = "0.6"
+staticfile = "0.5"
+mount = "0.4"
+peel-ip = { git = "https://github.com/neosilky/peel-ip" }

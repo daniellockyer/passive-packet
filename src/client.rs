@@ -13,23 +13,21 @@ use common::{CommStore,Communication};
 
 use curl::easy::Easy;
 use std::{env,process};
-use std::io::{self, Write, Read};
+use std::io::Read;
 use std::net::{IpAddr, Ipv4Addr};
 use std::path::Path;
 
 use peel_ip::prelude::*;
-use pnet::packet::Packet;
 use pnet::datalink::NetworkInterface;
 use pnet::datalink::Channel::Ethernet;
 
 fn main() {
 	let failover = || {
-		writeln!(io::stderr(), "[!] Usage:\n\tclient <interface>\n\tclient --file <file.pcap>").unwrap();
+		eprintln!("[!] Usage:\n\tclient <interface>\n\tclient --file <file.pcap>");
 		process::exit(1);
 	};
 
 	let first_arg = env::args().nth(1).unwrap_or_else(&failover);
-
 	let mut file_mode = false;
 
 	let channel = if first_arg == "--file" {
@@ -39,7 +37,7 @@ fn main() {
 	} else {
 		pnet::datalink::channel(&pnet::datalink::interfaces().into_iter()
 			.find(|i: &NetworkInterface| i.name == first_arg).unwrap_or_else(|| {
-				writeln!(io::stderr(), "[!] That interface does not exist.").unwrap();
+				eprintln!("[!] That interface does not exist");
 				process::exit(1);
 			}), Default::default())
 	};
@@ -52,14 +50,13 @@ fn main() {
 
 	let mut data = CommStore::new();
 	let mut peel = PeelIp::default();
-	let mut iter = rx.iter();
 	let mut easy = Easy::new();
 	let mut count = 0;
 
 	loop {
-		match iter.next() {
+		match rx.next() {
 			Ok(packet) => {
-				let result = peel.traverse(packet.packet(), vec![]).result;
+				let result = peel.traverse(packet, vec![]).result;
 				let (mut src, mut dst) = (IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)));
 				let (mut src_group, mut dst_group) = ("desktop", "desktop");
 				let mut packet_type = "unknown";
@@ -108,7 +105,7 @@ fn main() {
 					else if i.downcast_ref::<NatpmpPacket>().is_some() { packet_type = "NAT-PMP"; }
 					else if i.downcast_ref::<RadiusPacket>().is_some() { packet_type = "RADIUS"; }
 
-					else { println!("{:?}", packet.packet()); }
+					else { println!("{:?}", packet); }
 				}
 
 				if src == dst { continue; }
